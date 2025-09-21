@@ -13,7 +13,7 @@ export default function Login() {
     e.preventDefault();
     try {
       // Call backend login endpoint
-      const res = await axios.post('http://localhost:5000/api/users/login', {
+      const res = await axios.post('http://localhost:3001/api/users/login', {
         email,
         password
       });

@@ -14,7 +14,7 @@ export default function Signup() {
     e.preventDefault(); // prevent page reload on form submit
     try {
       // Call backend signup endpoint
-      await axios.post('http://localhost:5000/api/users/signup', {
+      await axios.post('http://localhost:3001/api/users/signup', {
         name,
         email,
         password
