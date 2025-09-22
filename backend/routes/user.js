@@ -1,60 +1,82 @@
 const express = require("express");
 const router = express.Router();
-
-// Simple in-memory storage for demo purposes
-let users = [];
+const User = require("../models/user");
 
 // Test endpoint
-router.get("/test", (req, res) => {
-  res.json({ message: "Backend is working!", users: users.length });
-});
-
-// Signup Endpoint
-router.post("/signup", (req, res) => {
+router.get("/test", async (req, res) => {
   try {
-    const { name, email, password } = req.body;
-    
-    // Check if user already exists
-    const existingUser = users.find(user => user.email === email);
-    if (existingUser) {
-      return res.status(400).json({ message: "User already exists" });
-    }
-    
-    // Create new user (in real app, hash password)
-    const newUser = {
-      id: Date.now(),
-      name,
-      email,
-      password // In real app, this should be hashed
-    };
-    
-    users.push(newUser);
-    res.status(201).json({ message: "User created successfully" });
+    const userCount = await User.countDocuments();
+    res.json({ message: "Backend is working!", users: userCount });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
 
-// Login Endpoint
-router.post("/login", (req, res) => {
+// Signup Endpoint
+router.post("/signup", async (req, res) => {
   try {
-    const { email, password } = req.body;
-    
+    let { name, email, password } = req.body;
+
+    // Validate required fields
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    // Normalize email: lowercase + trim
+    email = email.toLowerCase().trim();
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: "User already exists with this email" });
+    }
+
+    // Create new user (password still plain for now)
+    const newUser = new User({
+      name: name.trim(),
+      email,
+      password
+    });
+
+    await newUser.save();
+    res.status(201).json({ message: "User created successfully", user: { name: newUser.name, email: newUser.email } });
+  } catch (error) {
+    // Handle MongoDB duplicate key error
+    if (error.code === 11000) {
+      return res.status(400).json({ message: "User already exists with this email" });
+    }
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Login Endpoint
+router.post("/login", async (req, res) => {
+  try {
+    let { email, password } = req.body;
+
+    // Validate required fields
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required" });
+    }
+
+    // Normalize email
+    email = email.toLowerCase().trim();
+
     // Find user
-    const user = users.find(u => u.email === email);
+    const user = await User.findOne({ email });
     if (!user) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
-    
-    // Check password (in real app, compare hashed password)
+
+    // Check password (plain for now)
     if (user.password !== password) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
-    
+
     // Generate simple token (in real app, use JWT)
-    const token = `token_${user.id}_${Date.now()}`;
-    
-    res.json({ token, message: "Login successful" });
+    const token = `token_${user._id}_${Date.now()}`;
+
+    res.json({ token, message: "Login successful", user: { name: user.name, email: user.email } });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
